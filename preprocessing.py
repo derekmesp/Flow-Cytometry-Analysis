@@ -81,31 +81,36 @@ def pd_to_adata(df_flow, df_flow_counts):
     adata.obs['sample_id'] = df_metadata.sample_id
     
     return adata
-
-def pca_df(sample, session):
+def pca_df(sample, session=None, singular=True, sample_list=None):
     """
-    Creates a DataFrame of PCA data grouped by sample ID with donor group classification.
+    Creates a DataFrame of PCA data from flow cytometry samples and groups it by sample ID.
 
     This function extracts PCA coordinates from an AnnData object, groups them by sample ID,
-    and assigns donor group classifications (ctr, hst, ftl) based on sample ID patterns.
-    It filters out samples that don't match the grouped PCA indices.
+    and assigns donor group labels based on sample naming conventions. It handles both single
+    session processing and pre-defined sample lists.
 
     Parameters:
     -----------
     sample : anndata.AnnData
-        An AnnData object containing PCA coordinates in the obsm['X_pca'] attribute
-        and sample IDs in the obs['sample_id'] attribute.
-    session : flowkit.Session
-        A flowkit Session object containing sample information.
+        An AnnData object containing PCA results in the obsm['X_pca'] slot and sample IDs
+        in the obs['sample_id'] column.
+    session : flowkit.Session, optional
+        A flowkit Session object used to retrieve sample IDs when singular=True.
+    singular : bool, default=True
+        If True (samples are from one tissue), sample IDs are retrieved from the session. If False (multiple tissues), the provided sample_list is used.
+    sample_list : list, optional
+        A list of sample IDs to process. Required when singular=False (multiple tissues are present).
 
     Returns:
     --------
     pandas.DataFrame
-        A DataFrame containing averaged PCA coordinates grouped by sample ID,
-        with an additional 'donor_group' column indicating the classification
-        (ctr, hst, or ftl) for each sample.
+        A DataFrame containing averaged PCA coordinates for each sample ID, with an additional
+        'donor_group' column indicating the experimental condition ('ctr', 'hst', or 'ftl')
+        based on the sample ID.
     """
-    sample_list = session.get_sample_ids()
+    
+    if singular:
+        sample_list = session.get_sample_ids()
     pca_df = pd.DataFrame(sample.obsm['X_pca'], columns=[f'PC{i+1}' for i in range(sample.obsm['X_pca'].shape[1])])
     pca_df['sample_id'] = sample.obs['sample_id'].values
 
@@ -126,4 +131,4 @@ def pca_df(sample, session):
             donor_groups.append('ftl')
             
     grouped_pca['donor_group'] = donor_groups
-    return grouped_pca
+    return grouped_pca    
