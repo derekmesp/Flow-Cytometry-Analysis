@@ -2,37 +2,38 @@ import flowkit as fk
 import pandas as pd
 import scanpy as sc
 import matplotlib.pyplot as plt
-def read_flow(directory):
+def read_flow(directory, tissue=None):
     """
-    Reads flow cytometry data from FCS files in a specified directory and processes it into a pandas DataFrame.
-
-    This function creates a flowkit Session from the FCS files in the given directory, extracts events data
-    for each sample, adds sample identification and condition information, and combines all samples into a
-    single DataFrame.
-
+    Reads flow cytometry data from FCS files in the specified directory.
+    
+    This function loads flow cytometry data from FCS files, processes them into a pandas DataFrame,
+    and assigns tissue and condition labels based on sample IDs. It automatically detects control
+    (ctr), heat-stressed (hst), and fetal (ftl) conditions from the sample names.
+    
     Parameters:
     -----------
     directory : str
-        The path to the directory containing FCS files to be processed.
-
+        Path to the directory containing FCS files to be analyzed.
+    tissue : str, optional
+        Tissue type label to assign to all samples. If None, no tissue label is assigned.
+        
     Returns:
     --------
     tuple
         A tuple containing three elements:
-        1. pandas.DataFrame: A DataFrame containing combined flow cytometry data from all samples in the directory.
-           The DataFrame includes columns for sample ID, condition, and all parameters from the FCS files.
-           Column names are adjusted to use parameter short names (pns) where available.
-        2. list: A list of sample IDs processed from the FCS files.
-        3. flowkit.Session: The flowkit Session object created from the FCS files.
-
+        - df_flow (pandas.DataFrame): Combined DataFrame of all flow cytometry samples with added
+          metadata columns (tissue, sample_id, condition).
+        - sample_list (list): List of all sample IDs found in the directory.
+        - session (flowkit.Session): The flowkit Session object used to read the FCS files.
     """
-
     session = fk.Session(fcs_samples=directory)
     sample_list = session.get_sample_ids()
     
     df_flow = []
     for sample_id in sample_list:
         df = session.get_gate_events(sample_id)
+        if tissue is not None:
+            df['tissue'] = tissue
         df["sample_id"] = sample_id
         if "ctr" in sample_id:
             df["condition"] = "ctr"
@@ -72,13 +73,24 @@ def pd_to_adata(df_flow, df_flow_counts):
 
     """
     df_flow['sample_id'] = df_flow['sample_id'].apply(lambda x: x[:4])
-    list_metadata = {'group' : df_flow.condition, 'sample_id' : df_flow.sample_id}
-    df_metadata = pd.DataFrame(list_metadata)
-    
-    adata = sc.AnnData(df_flow_counts)
-    df_metadata.index = adata.obs.index
-    adata.obs['group'] = df_metadata.group
-    adata.obs['sample_id'] = df_metadata.sample_id
+    if 'tissue' not in df_flow.columns:
+        list_metadata = {'group' : df_flow.condition, 'sample_id' : df_flow.sample_id}
+        df_metadata = pd.DataFrame(list_metadata)
+        
+        adata = sc.AnnData(df_flow_counts)
+        df_metadata.index = adata.obs.index
+        adata.obs['group'] = df_metadata.group
+        adata.obs['sample_id'] = df_metadata.sample_id
+    else:
+        list_metadata = {'group' : df_flow.condition, 'sample_id' : df_flow.sample_id, 'tissue' : df_flow.tissue}
+        df_metadata = pd.DataFrame(list_metadata)
+        
+        adata = sc.AnnData(df_flow_counts)
+        df_metadata.index = adata.obs.index
+        adata.obs['group'] = df_metadata.group
+        adata.obs['sample_id'] = df_metadata.sample_id
+        adata.obs['tissue'] = df_metadata.tissue
+        
     
     return adata
 def pca_df(sample, session=None, singular=True, sample_list=None):
