@@ -95,52 +95,43 @@ def pd_to_adata(df_flow, df_flow_counts):
     return adata
 def pca_df(sample, session=None, singular=True, sample_list=None):
     """
-    Creates a DataFrame of PCA data from flow cytometry samples and groups it by sample ID.
-
+    Creates a DataFrame of PCA values from flow cytometry data, grouped by sample ID.
+    
     This function extracts PCA coordinates from an AnnData object, groups them by sample ID,
-    and assigns donor group labels based on sample naming conventions. It handles both single
-    session processing and pre-defined sample lists.
-
+    and adds donor group information based on sample IDs. It can work with either a single
+    sample or multiple samples.
+    
     Parameters:
     -----------
     sample : anndata.AnnData
-        An AnnData object containing PCA results in the obsm['X_pca'] slot and sample IDs
-        in the obs['sample_id'] column.
+        AnnData object containing PCA coordinates in the obsm['X_pca'] attribute and
+        sample IDs in obs['sample_id'].
     session : flowkit.Session, optional
-        A flowkit Session object used to retrieve sample IDs when singular=True.
+        FlowKit session object used to retrieve sample IDs when singular=True.
     singular : bool, default=True
-        If True (samples are from one tissue), sample IDs are retrieved from the session. If False (multiple tissues), the provided sample_list is used.
+        If True, retrieves sample IDs from the session. If False, uses the provided sample_list.
     sample_list : list, optional
-        A list of sample IDs to process. Required when singular=False (multiple tissues are present).
-
+        List of sample IDs to use when singular=False.
+        
     Returns:
     --------
     pandas.DataFrame
-        A DataFrame containing averaged PCA coordinates for each sample ID, with an additional
-        'donor_group' column indicating the experimental condition ('ctr', 'hst', or 'ftl')
-        based on the sample ID.
+        A DataFrame containing averaged PCA coordinates for each sample ID, with columns:
+        - PC1, PC2, ...: Principal component coordinates
+        - donor_group: Donor group information extracted from sample IDs
     """
     
     if singular:
         sample_list = session.get_sample_ids()
+        
+    sample_dict = {}
+    for sample_id in sample_list:
+        sample_dict[sample_id[:4]] = sample_id[14:17]
+    
     pca_df = pd.DataFrame(sample.obsm['X_pca'], columns=[f'PC{i+1}' for i in range(sample.obsm['X_pca'].shape[1])])
     pca_df['sample_id'] = sample.obs['sample_id'].values
-
+    
     grouped_pca = pca_df.groupby('sample_id').mean()
-
-    for sample_id in sample_list:
-        sample_id_ = sample_id[:4]
-        if sample_id_ not in grouped_pca.index:
-            sample_list.remove(sample_id)
-
-    donor_groups = []
-    for sample_id in sample_list:
-        if "ctr" in sample_id:
-            donor_groups.append('ctr')
-        elif "hst" in sample_id:
-            donor_groups.append('hst')
-        elif "ftl" in sample_id:
-            donor_groups.append('ftl')
-            
-    grouped_pca['donor_group'] = donor_groups
-    return grouped_pca    
+    grouped_pca['donor_group'] = grouped_pca.index.map(sample_dict)
+    
+    return grouped_pca
