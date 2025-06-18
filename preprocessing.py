@@ -126,7 +126,7 @@ def pca_df(sample, session=None, singular=True, sample_list=None):
         
     sample_dict = {}
     for sample_id in sample_list:
-        sample_dict[sample_id[:4]] = sample_id[14:17]
+        sample_dict[sample_id[:4]] = 'ctr' if 'ctr' in sample_id else 'hst' if 'hst' in sample_id else 'ftl'
     
     pca_df = pd.DataFrame(sample.obsm['X_pca'], columns=[f'PC{i+1}' for i in range(sample.obsm['X_pca'].shape[1])])
     pca_df['sample_id'] = sample.obs['sample_id'].values
