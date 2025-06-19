@@ -8,7 +8,7 @@ def read_flow(directory, tissue=None):
     
     This function loads flow cytometry data from FCS files, processes them into a pandas DataFrame,
     and assigns tissue and condition labels based on sample IDs. It automatically detects control
-    (ctr), heat-stressed (hst), and fetal (ftl) conditions from the sample names.
+    (ctr), history (hst), and fatal (ftl) asthmatic conditions from the sample names.
     
     Parameters:
     -----------
@@ -90,7 +90,6 @@ def pd_to_adata(df_flow, df_flow_counts):
         adata.obs['group'] = df_metadata.group
         adata.obs['sample_id'] = df_metadata.sample_id
         adata.obs['tissue'] = df_metadata.tissue
-        
     
     return adata
 def pca_df(sample, session=None, singular=True, sample_list=None):
