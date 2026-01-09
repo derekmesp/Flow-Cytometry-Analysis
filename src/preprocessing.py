@@ -41,8 +41,13 @@ def read_flow(directory, tissue=None):
             df["condition"] = "hst"
         elif "ftl" in sample_id:
             df["condition"] = "ftl"
+        else:
+            raise ValueError(
+                f"Sample ID '{sample_id}' does not contain a valid condition tag "
+                "(expected one of: 'ctr', 'hst', 'ftl')."
+            )
         df_flow.append(df)
-        
+     
     df_flow = pd.concat(df_flow)
     df_flow.columns = [pns if pns != '' else pnn for pnn, pns in df_flow.columns]
     print('Parameters:', df_flow.keys())
@@ -72,25 +77,28 @@ def pd_to_adata(df_flow, df_flow_counts):
         - obs: Observation annotations including 'group' and 'sample_id'
 
     """
+    if df_flow.isna().any().any():
+        nan_cols = df_flow.columns[df_flow.isna().any()].tolist()
+        raise ValueError(
+        f"NaN values detected in df_flow columns: {nan_cols}"
+        )
+        
     df_flow['sample_id'] = df_flow['sample_id'].apply(lambda x: x[:4])
-    if 'tissue' not in df_flow.columns:
-        list_metadata = {'group' : df_flow.condition, 'sample_id' : df_flow.sample_id}
-        df_metadata = pd.DataFrame(list_metadata)
-        
-        adata = sc.AnnData(df_flow_counts)
-        df_metadata.index = adata.obs.index
-        adata.obs['group'] = df_metadata.group
-        adata.obs['sample_id'] = df_metadata.sample_id
-    else:
-        list_metadata = {'group' : df_flow.condition, 'sample_id' : df_flow.sample_id, 'tissue' : df_flow.tissue}
-        df_metadata = pd.DataFrame(list_metadata)
-        
-        adata = sc.AnnData(df_flow_counts)
-        df_metadata.index = adata.obs.index
-        adata.obs['group'] = df_metadata.group
-        adata.obs['sample_id'] = df_metadata.sample_id
-        adata.obs['tissue'] = df_metadata.tissue
-    
+    list_metadata = {
+        'group': df_flow.condition,
+        'sample_id': df_flow.sample_id
+    }
+
+    if 'tissue' in df_flow.columns:
+        list_metadata['tissue'] = df_flow.tissue
+
+    df_metadata = pd.DataFrame(list_metadata)
+    adata = sc.AnnData(df_flow_counts)
+    df_metadata.index = adata.obs.index
+
+    for col in df_metadata.columns:
+        adata.obs[col] = df_metadata[col]
+
     return adata
 def pca_df(sample, session=None, singular=True, sample_list=None):
     """
