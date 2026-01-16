@@ -42,10 +42,11 @@ def read_flow(directory, tissue=None):
         elif "ftl" in sample_id:
             df["condition"] = "ftl"
         else:
-            raise ValueError(
-                f"Sample ID '{sample_id}' does not contain a valid condition tag "
-                "(expected one of: 'ctr', 'hst', 'ftl')."
+            manual_condition = manual_condition = input(
+                f"Sample {sample_id} missing condition annotation. Insert manually: "
             )
+            df["condition"] = manual_condition
+            
         df_flow.append(df)
      
     df_flow = pd.concat(df_flow)
