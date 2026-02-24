@@ -34,18 +34,23 @@ def read_flow(directory, tissue=None):
         df = session.get_gate_events(sample_id)
         if tissue is not None:
             df['tissue'] = tissue
+        df['age'] = int(sample_id.split('_')[2])
         df["sample_id"] = sample_id
         if "ctr" in sample_id:
             df["condition"] = "ctr"
+            df["asthma"] = "control"
         elif "hst" in sample_id:
             df["condition"] = "hst"
+            df["asthma"] = "asthmatic"
         elif "ftl" in sample_id:
             df["condition"] = "ftl"
+            df["asthma"] = "asthmatic"
         else:
             manual_condition = manual_condition = input(
                 f"Sample {sample_id} missing condition annotation. Insert manually: "
             )
             df["condition"] = manual_condition
+            df["asthma"] = "asthmatic" if manual_condition in ["hst", "ftl"] else "control"
             
         df_flow.append(df)
      
@@ -87,7 +92,9 @@ def pd_to_adata(df_flow, df_flow_counts):
     df_flow['sample_id'] = df_flow['sample_id'].apply(lambda x: x[:4])
     list_metadata = {
         'group': df_flow.condition,
-        'sample_id': df_flow.sample_id
+        'sample_id': df_flow.sample_id,
+        'age': df_flow.age,
+        'asthma': df_flow.asthma
     }
 
     if 'tissue' in df_flow.columns:
