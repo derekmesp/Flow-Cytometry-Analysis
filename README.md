@@ -1,4 +1,4 @@
-## Pipeline for clustering and visualization of tissue-specific flow cytometry data from asthmatic organ donors
+## High-Throughput Integrated Flow Cytometry Analysis of Human Fatal Asthma
 
 Scripts and source code are compatible with Python 3.14.
 
