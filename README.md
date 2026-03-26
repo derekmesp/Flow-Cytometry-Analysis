@@ -1,19 +1,14 @@
-Analysis of flow cytometry data from asthmatic donors' various tissue sites.
+## Pipeline for clustering and visualization of tissue-specific flow cytometry data from asthmatic organ donors
 
-## preprocessing.py (Updated 4.28.25)
-Python script containing methods for flow_script.ipynb and myeloid_script.ipynb for loading FCS files in python, representing flow cytometry data in a single-cell data structure, and creating visualization of PCA components with donor numbers and group neighborhoods.
+Scripts and source code are compatible with Python 3.14.
 
-## plotting_methods.py
-Python script containing methods for plotting PCA and t-SNE plots with group donor and group annotations.
+## CD3-scripts
+- Tissue-wide scripts for analysis of integrated datasets from flow cytometry panels for T cell populations.
+- Script for stratification of datasets based on the age of donors.
 
-## flow_script.ipynb (Updated 4.28.25)
-Preprocessing and downstream analysis of flow cytometry data from BLD, BOM, JEL, JLP, LLN, LNG, MLN, and SPL tissues sites of donors. Performs PCA, t-SNE dimensional reductions and creates UMAP visualizations for CD3, CD4, CD8, gdTCR, TCRva filtered groups. 
+## Myeloid-scripts
+- Tissue-wide scripts for analysis of integrated datasets from flow cytometry panels for Myeloid populations.
 
-## myeloid_script.ipynb (Updated 5.28.25)
-Preprocessing and downstream analysis of myeloid flow cytometry data from BLD, BOM, JEL, LNG, MLN, and SPL tissues sites of donors. Performs PCA, t-SNE dimensional reductions and creates UMAP visualizations for all cells, CD3-CD19-, CD3-CD19-CD33-, and CD3-CD19-CD33+ filtered groups.
-
-## total_flow.ipynb (Don't remember last update)
-Downstream analysis of all combined tisuses for flow_script.ipynb. *Desperately needs to be updated for organization*
-
-## cytokine_assay.ipynb
-Very very messy exploratory data analysis of cytokine assay data from asthma donors.
+## src
+- Python modules for importing FCS data into the environment and preparing it as an AnnData object.
+- Visualization of PCA components
