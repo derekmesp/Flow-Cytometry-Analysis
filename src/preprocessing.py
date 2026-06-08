@@ -2,6 +2,8 @@ import flowkit as fk
 import pandas as pd
 import scanpy as sc
 import matplotlib.pyplot as plt
+from difflib import SequenceMatcher
+
 def read_flow(directory, tissue=None):
     """
     Reads flow cytometry data from FCS files in the specified directory.
@@ -59,6 +61,44 @@ def read_flow(directory, tissue=None):
     print('Parameters:', df_flow.keys())
     return df_flow, sample_list, session
 
+def automate_merging(df, columns, threshold=0.6):
+    """
+    Merges duplicate channels in dataframe as a result of utilizing different fluorophores for the same marker.
+    Updates dataframe with merged channels for each duplicate marker.
+
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        A DataFrame containing flow cytometry data, containing duplicate channels.
+    columns : list
+        List containing the columns that are duplicate channels.
+    
+    Returns:
+    --------
+    pandas.DataFrame
+        Dataframe containing flow cytometry data with merged channels and excluding duplicates.
+    
+    """
+    remaining = set(columns)
+    
+    while remaining:
+        s1 = remaining.pop()
+        matches = [(s2, SequenceMatcher(None, s1, s2).ratio()) for s2 in remaining]
+        
+        if matches:
+            best_match, score = max(matches, key=lambda x: x[1])
+            
+            if score >= threshold:
+                df[s1] = df[[s1, best_match]].max(axis=1)
+                print(f"Merged {best_match} into {s1} (Score: {score:.2f})")
+                
+                remaining.remove(best_match)
+                df.drop(columns=[best_match], inplace=True)
+                
+    return df
+    
+    
+
 def pd_to_adata(df_flow, df_flow_counts):
     """
     Converts flow cytometry data from pandas DataFrames to an AnnData object.
@@ -72,22 +112,20 @@ def pd_to_adata(df_flow, df_flow_counts):
     df_flow : pandas.DataFrame
         A DataFrame containing flow cytometry data, including 'sample_id' and 'condition' columns.
     df_flow_counts : pandas.DataFrame
-        A DataFrame containing count data for the flow cytometry samples.
+        A DataFrame containing intensity data for the flow cytometry samples.
 
     Returns:
     --------
     anndata.AnnData
-        An AnnData object containing the flow cytometry count data with associated metadata.
+        An AnnData object containing the flow cytometry intensity data with associated metadata.
         The object includes:
         - X: The count matrix from df_flow_counts
         - obs: Observation annotations including 'group' and 'sample_id'
 
     """
-    if df_flow.isna().any().any():
-        nan_cols = df_flow.columns[df_flow.isna().any()].tolist()
-        raise ValueError(
-        f"NaN values detected in df_flow columns: {nan_cols}"
-        )
+    if df_flow_counts.isna().any().any():
+        nan_cols = df_flow_counts.columns[df_flow_counts.isna().any()].tolist()
+        df_flow_counts = automate_merging(df_flow_counts, nan_cols)
         
     df_flow['sample_id'] = df_flow['sample_id'].apply(lambda x: x[:4])
     list_metadata = {
