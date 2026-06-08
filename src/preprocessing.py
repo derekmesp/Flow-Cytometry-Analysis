@@ -123,9 +123,9 @@ def pd_to_adata(df_flow, df_flow_counts):
         - obs: Observation annotations including 'group' and 'sample_id'
 
     """
-    if df_flow.isna().any().any():
-        nan_cols = df_flow.columns[df_flow.isna().any()].tolist()
-        df_flow = automate_merging(df_flow, nan_cols)
+    if df_flow_counts.isna().any().any():
+        nan_cols = df_flow_counts.columns[df_flow_counts.isna().any()].tolist()
+        df_flow_counts = automate_merging(df_flow_counts, nan_cols)
         
     df_flow['sample_id'] = df_flow['sample_id'].apply(lambda x: x[:4])
     list_metadata = {
