@@ -1,67 +1,87 @@
+import logging
+
 import flowkit as fk
+import numpy as np
 import pandas as pd
 import scanpy as sc
 import matplotlib.pyplot as plt
 from difflib import SequenceMatcher
 
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 def read_flow(directory, tissue=None):
     """
-    Reads flow cytometry data from FCS files in the specified directory.
-
-    This function loads flow cytometry data from FCS files, processes them into a pandas DataFrame,
-    and assigns tissue and condition labels based on sample IDs. It automatically detects control
-    (ctr), history (hst), and fatal (ftl) asthmatic conditions from the sample names.
+    Reads flow cytometry data from a specified directory and returns a DataFrame containing the data,
+    a list of sample IDs, and the FlowKit session object.
 
     Parameters:
     -----------
     directory : str
-        Path to the directory containing FCS files to be analyzed.
+        The path to the directory containing flow cytometry data files.
     tissue : str, optional
-        Tissue type label to assign to all samples. If None, no tissue label is assigned.
+        The type of tissue being analyzed, used to annotate the DataFrame.       
 
     Returns:
     --------
     tuple
-        A tuple containing three elements:
-        - df_flow (pandas.DataFrame): Combined DataFrame of all flow cytometry samples with added
-          metadata columns (tissue, sample_id, condition).
-        - sample_list (list): List of all sample IDs found in the directory.
-        - session (flowkit.Session): The flowkit Session object used to read the FCS files.
+        A tuple containing:
+        - df_flow : pandas.DataFrame
+            A DataFrame containing flow cytometry data with additional metadata columns.
+        - sample_list : list
+            A list of sample IDs extracted from the FlowKit session.
+        - session : flowkit.Session
+            The FlowKit session object used to read the flow cytometry data.
     """
-    session = fk.Session(fcs_samples=directory)
-    sample_list = session.get_sample_ids()
 
+    try:
+        session = fk.Session(fcs_samples=directory)
+    except Exception as e:
+        raise IOError(
+            f"Failed to initialize FlowKit Session on directory '{directory}': {e}")
+
+    sample_list = session.get_sample_ids()
     df_flow = []
+
     for sample_id in sample_list:
         df = session.get_gate_events(sample_id)
         if tissue is not None:
             df['tissue'] = tissue
-        df['age'] = int(sample_id.split('_')[2])
+        try:
+            df['age'] = int(sample_id.split('_')[2])
+        except (IndexError, ValueError):
+            logging.warning(
+                f"Could not extract age from sample ID '{sample_id}'. Setting age to NaN.")
+            df['age'] = np.nan
         df["sample_id"] = sample_id
-        if "ctr" in sample_id:
+
+        if "ctr" in sample_id.lower():
             df["condition"] = "ctr"
             df["asthma"] = "control"
-        elif "hst" in sample_id:
+        elif "hst" in sample_id.lower():
             df["condition"] = "hst"
             df["asthma"] = "asthmatic"
-        elif "ftl" in sample_id:
+        elif "ftl" in sample_id.lower():
             df["condition"] = "ftl"
             df["asthma"] = "asthmatic"
         else:
-            manual_condition = manual_condition = input(
-                f"Sample {sample_id} missing condition annotation. Insert manually: "
+            raise ValueError(
+                f"Critical Metadata Discrepancy: Sample ID '{sample_id}' does not match "
+                f"standard Farber Lab cohorts ('ctr', 'hst', 'ftl'). Fix raw naming conventions."
             )
-            df["condition"] = manual_condition
-            df["asthma"] = "asthmatic" if manual_condition in [
-                "hst", "ftl"] else "control"
 
         df_flow.append(df)
+
+    if not df_flow:
+        raise ValueError(
+            f"No valid data frames generated from directory: {directory}")
 
     df_flow = pd.concat(df_flow)
     df_flow.columns = [pns if pns !=
                        '' else pnn for pnn, pns in df_flow.columns]
-    print('Parameters:', df_flow.keys())
+    logging.info(
+        f"Successfully processed {len(sample_list)} files for tissue: {tissue}")
     return df_flow, sample_list, session
 
 
@@ -84,7 +104,6 @@ def automate_merging(df, columns, threshold=0.6):
 
     """
     remaining = set(columns)
-
     while remaining:
         s1 = remaining.pop()
         matches = [(s2, SequenceMatcher(None, s1, s2).ratio())
@@ -92,14 +111,12 @@ def automate_merging(df, columns, threshold=0.6):
 
         if matches:
             best_match, score = max(matches, key=lambda x: x[1])
-
             if score >= threshold:
                 df[s1] = df[[s1, best_match]].max(axis=1)
-                print(f"Merged {best_match} into {s1} (Score: {score:.2f})")
-
+                logging.info(
+                    f"Automated Channel Merge: {best_match} -> {s1} (String Similarity Score: {score:.2f})")
                 remaining.remove(best_match)
                 df.drop(columns=[best_match], inplace=True)
-
     return df
 
 
@@ -131,18 +148,18 @@ def pd_to_adata(df_flow, df_flow_counts):
         nan_cols = df_flow_counts.columns[df_flow_counts.isna().any()].tolist()
         df_flow_counts = automate_merging(df_flow_counts, nan_cols)
 
-    df_flow['sample_id'] = df_flow['sample_id'].apply(lambda x: x[:4])
-    list_metadata = {
-        'group': df_flow.condition,
-        'sample_id': df_flow.sample_id,
-        'age': df_flow.age,
-        'asthma': df_flow.asthma
-    }
+    short_sample_ids = df_flow['sample_id'].astype(str).str[:4]
+
+    df_metadata = pd.DataFrame({
+        'group': df_flow['condition'].values,
+        'sample_id': short_sample_ids.values,
+        'age': df_flow['age'].values,
+        'asthma': df_flow['asthma'].values
+    }, index=df_flow_counts.index)
 
     if 'tissue' in df_flow.columns:
-        list_metadata['tissue'] = df_flow.tissue
+        df_metadata['tissue'] = df_flow.tissue
 
-    df_metadata = pd.DataFrame(list_metadata)
     adata = sc.AnnData(df_flow_counts)
     df_metadata.index = adata.obs.index
 
