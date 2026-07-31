@@ -1,5 +1,15 @@
 ## High-Throughput Integrated Flow Cytometry Analysis of Human Fatal Asthma
 
+--- 
+Repository Cloning
+ ```bash
+   git clone https://github.com
+   cd Flow-Cytometry-Analysis
+   ```
+```bash
+   pip install -r requirements.txt
+   ```
+
 ```
 📦 
 ├─ README.md
