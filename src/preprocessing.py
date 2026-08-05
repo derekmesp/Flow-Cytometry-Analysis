@@ -213,3 +213,95 @@ def pca_df(sample, session=None, singular=True, sample_list=None):
     grouped_pca['donor_group'] = grouped_pca.index.map(sample_dict)
 
     return grouped_pca
+
+
+def population_filter(adata, population_column, population_value):
+    """
+    Filters the AnnData object based on a specified population column and value.
+
+    Parameters:
+    -----------
+    adata : anndata.AnnData
+        AnnData object containing flow cytometry data with observation annotations.
+    population_column : str
+        The name of the column in adata.obs to filter on (e.g., 'CD4', 'CD8').
+    population_value : float
+        The threshold value for filtering the specified population column.
+
+    Returns:
+    --------
+    anndata.AnnData
+        A filtered AnnData object containing only the cells that meet the specified population criteria.
+    """
+
+    if population_column not in adata.obs.columns:
+        raise ValueError(
+            f"Column '{population_column}' not found in adata.obs. Available columns: {list(adata.obs.columns)}")
+
+    if population_column == 'CD4':
+        try:
+            CD4 = adata[(adata[:, 'CD4'].X > population_value)]
+        except KeyError:
+            raise KeyError(
+                f"Column 'CD4' not found in adata.var. Available columns: {list(adata.var.index)}")
+
+        CD4 = CD4[:, CD4.var.index != 'gdTCR']
+        CD4 = CD4[:, CD4.var.index != 'TCRva']
+        CD4 = CD4[:, CD4.var.index != 'CD4']
+        CD4 = CD4[:, CD4.var.index != 'CD8']
+
+        groups = ['ctr', 'hst', 'ftl']
+        tissues = CD4.obs['tissue'].unique().tolist()
+        adata_list = []
+
+        for group in groups:
+            for tissue in tissues:
+                subset = CD4[(CD4.obs['group'] == group) &
+                             (CD4.obs['tissue'] == tissue)]
+                if subset.shape[0] >= 5000:
+                    sampled_subset = subset[np.random.choice(
+                        subset.shape[0], 50000, replace=False)]
+                else:
+                    sampled_subset = subset
+
+                sampled_subset.obs['group'] = f"{group}"
+                adata_list.append(sampled_subset.copy())
+
+        CD4 = sc.AnnData.concatenate(*adata_list, index_unique=None)
+        return CD4
+
+    elif population_column == 'CD8':
+        try:
+            CD8 = adata[(adata[:, 'CD8'].X > population_value)]
+        except KeyError:
+            raise KeyError(
+                f"Column 'CD8' not found in adata.var. Available columns: {list(adata.var.index)}")
+
+        CD8 = CD8[:, CD8.var.index != 'gdTCR']
+        CD8 = CD8[:, CD8.var.index != 'TCRva']
+        CD8 = CD8[:, CD8.var.index != 'CD4']
+        CD8 = CD8[:, CD8.var.index != 'CD8']
+
+        groups = ['ctr', 'hst', 'ftl']
+        tissues = CD8.obs['tissue'].unique().tolist()
+        adata_list = []
+
+        for group in groups:
+            for tissue in tissues:
+                subset = CD8[(CD8.obs['group'] == group) &
+                             (CD8.obs['tissue'] == tissue)]
+                if subset.shape[0] >= 5000:
+                    sampled_subset = subset[np.random.choice(
+                        subset.shape[0], 50000, replace=False)]
+                else:
+                    sampled_subset = subset
+
+                sampled_subset.obs['group'] = f"{group}"
+                adata_list.append(sampled_subset.copy())
+
+        CD8 = sc.AnnData.concatenate(*adata_list, index_unique=None)
+        return CD8
+
+    else:
+        raise NotImplementedError(
+            f"Population filtering for '{population_column}' is not implemented. Supported populations: 'CD4', 'CD8'.")
