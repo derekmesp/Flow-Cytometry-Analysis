@@ -21,7 +21,7 @@ def read_flow(directory, tissue=None):
     directory : str
         The path to the directory containing flow cytometry data files.
     tissue : str, optional
-        The type of tissue being analyzed, used to annotate the DataFrame.       
+        The type of tissue being analyzed, used to annotate the DataFrame.
 
     Returns:
     --------
