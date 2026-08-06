@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scanpy as sc
 from sklearn.manifold import TSNE
+import seaborn as sns
+import pandas as pd
 
 
 def pca_plot(grouped_pca, tissue_type, sample_name):
@@ -177,3 +179,77 @@ def annotated_umap(adata, tissue_type, sample_name, obs):
                 weight='bold', ha='center', va='center')
 
     plt.show()
+
+
+def composition_dotplot(adata, group_x, group_y):
+    """
+    Creates a dot plot showing the composition of cell types across different groups.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        AnnData object containing the data to be plotted. The observations (cells) should have
+        categorical annotations for both group_x and group_y in adata.obs.
+    group_x : str
+        The name of the observation column in adata.obs that defines the x-axis groups (e
+        g., different conditions or samples).
+    group_y : str
+        The name of the observation column in adata.obs that defines the y-axis groups (e.g., cell types).
+
+    Returns
+    -------
+    None
+        The function displays the dot plot but does not return any value.
+    """
+
+    cell_counts = (
+        adata.obs
+        .groupby([group_x, group_y])
+        .size()
+        .reset_index(name='counts')
+    )
+
+    cell_counts['fraction'] = (
+        cell_counts
+        .groupby(group_x)['counts']
+        .transform(lambda x: x / x.sum())
+    )
+    plt.figure(figsize=(7, 5))
+
+    dot_data = cell_counts.copy()
+    lineage_order = adata.obs[group_y].unique()
+
+    dot_data[group_y] = pd.Categorical(
+        dot_data[group_y],
+        categories=lineage_order[::-1],
+        ordered=True
+    )
+
+    sns.scatterplot(
+        data=dot_data,
+        x=group_x,
+        y=group_y,
+        size='fraction',
+        hue='fraction',
+        sizes=(30, 350),
+        palette='viridis',
+        edgecolor='black',
+        linewidth=0.4,
+        legend='auto'
+    )
+
+    plt.title('Cluster Composition Across {}'.format(group_x), fontsize=14)
+    plt.xlabel('')
+    plt.ylabel('')
+    plt.xticks(rotation=0)
+
+    plt.legend(
+        title='Fraction of cells',
+        bbox_to_anchor=(1.02, 1),
+        loc='upper left',
+        frameon=False
+    )
+
+
+plt.tight_layout()
+plt.show()
