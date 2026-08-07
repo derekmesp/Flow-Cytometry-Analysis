@@ -302,6 +302,92 @@ def population_filter(adata, population_column, population_value):
         CD8 = sc.AnnData.concatenate(*adata_list, index_unique=None)
         return CD8
 
+    elif population_column == 'CD3':
+        try:
+            CD3 = adata[(adata[:, 'CD3'].X > population_value)]
+        except KeyError:
+            raise KeyError(
+                f"Column 'CD3' not found in adata.var. Available columns: {list(adata.var.index)}")
+
+        groups = ['ctr', 'hst', 'ftl']
+        tissues = CD3.obs['tissue'].unique().tolist()
+        adata_list = []
+
+        for group in groups:
+            for tissue in tissues:
+                subset = CD3[(CD3.obs['group'] == group) &
+                             (CD3.obs['tissue'] == tissue)]
+                if subset.shape[0] >= 5000:
+                    sampled_subset = subset[np.random.choice(
+                        subset.shape[0], 50000, replace=False)]
+                else:
+                    sampled_subset = subset
+
+                sampled_subset.obs['group'] = f"{group}"
+                adata_list.append(sampled_subset.copy())
+
+        CD3 = sc.AnnData.concatenate(*adata_list, index_unique=None)
+        return CD3
+    elif population_column == 'gdTCR':
+        try:
+            gdTCR = adata[(adata[:, 'gdTCR'].X > population_value)]
+        except KeyError:
+            raise KeyError(
+                f"Column 'gdTCR' not found in adata.var. Available columns: {list(adata.var.index)}")
+
+        gdTCR = gdTCR[:, gdTCR.var.index != 'gdTCR']
+        gdTCR = gdTCR[:, gdTCR.var.index != 'TCRva']
+
+        groups = ['ctr', 'hst', 'ftl']
+        tissues = gdTCR.obs['tissue'].unique().tolist()
+        adata_list = []
+
+        for group in groups:
+            for tissue in tissues:
+                subset = gdTCR[(gdTCR.obs['group'] == group) &
+                               (gdTCR.obs['tissue'] == tissue)]
+                if subset.shape[0] >= 5000:
+                    sampled_subset = subset[np.random.choice(
+                        subset.shape[0], 50000, replace=False)]
+                else:
+                    sampled_subset = subset
+
+                sampled_subset.obs['group'] = f"{group}"
+                adata_list.append(sampled_subset.copy())
+
+        gdTCR = sc.AnnData.concatenate(*adata_list, index_unique=None)
+        return gdTCR
+
+    elif population_column == 'TCRva':
+        try:
+            TCRva = adata[(adata[:, 'TCRva'].X > population_value)]
+        except KeyError:
+            raise KeyError(
+                f"Column 'TCRva' not found in adata.var. Available columns: {list(adata.var.index)}")
+
+        TCRva = TCRva[:, TCRva.var.index != 'gdTCR']
+        TCRva = TCRva[:, TCRva.var.index != 'TCRva']
+
+        groups = ['ctr', 'hst', 'ftl']
+        tissues = TCRva.obs['tissue'].unique().tolist()
+        adata_list = []
+
+        for group in groups:
+            for tissue in tissues:
+                subset = TCRva[(TCRva.obs['group'] == group) &
+                               (TCRva.obs['tissue'] == tissue)]
+                if subset.shape[0] >= 5000:
+                    sampled_subset = subset[np.random.choice(
+                        subset.shape[0], 50000, replace=False)]
+                else:
+                    sampled_subset = subset
+
+                sampled_subset.obs['group'] = f"{group}"
+                adata_list.append(sampled_subset.copy())
+
+        TCRva = sc.AnnData.concatenate(*adata_list, index_unique=None)
+        return TCRva
+
     else:
         raise NotImplementedError(
             f"Population filtering for '{population_column}' is not implemented. Supported populations: 'CD4', 'CD8'.")

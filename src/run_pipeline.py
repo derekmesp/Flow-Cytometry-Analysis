@@ -108,6 +108,10 @@ def dem_ranked(adata, groups='leiden', method='t-test'):
 
     Returns
     -------
+    adata : anndata.AnnData
+        The AnnData object after differential expression analysis.
+    unique_values : list
+        A list of unique cell types identified.
     """
     sc.tl.rank_genes_groups(adata, groups=groups, method=method)
     result = adata.uns['rank_genes_groups']
@@ -126,6 +130,6 @@ def dem_ranked(adata, groups='leiden', method='t-test'):
     logging.info(f"Unique cell types identified: {unique_values}")
 
     sc.pl.rank_genes_groups_dotplot(
-        adata, n_genes=3,  cmap='RdBu_r', vcenter=0, vmin=-3, vmax=3)
+        adata, n_genes=3,  cmap='RdBu_r', vcenter=0, vmin=-3, vmax=3, show=False, save='ranked_markers_dotplot.png')
 
     return adata, unique_values
