@@ -181,6 +181,125 @@ def annotated_umap(adata, tissue_type, sample_name, obs):
     plt.show()
 
 
+def stratified_umap(adata, obs, tissue_type, sample_name, color_by='leiden'):
+    """
+    Creates a UMAP plot stratified by a specified observation.
+
+    This function visualizes UMAP results from an AnnData object, stratifying the data by a specified
+    observation (e.g., donor group). For each unique value in the specified observation, a separate UMAP plot is generated,
+    coloring the points by cell type and annotating the clusters with their respective labels. The plot includes
+    a title indicating the tissue type, sample name, and the current group being visualized.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        AnnData object containing UMAP coordinates in the obsm['X_umap'] attribute and
+        cell type information in the specified observation column.
+    obs : str
+        The name of the observation column in adata.obs that defines the groups for stratification.
+    tissue_type : str
+        The type of tissue being analyzed, used in the plot title.
+    sample_name : str
+        The name or identifier of the sample set, used in the plot title.
+    color_by : str, optional
+        The name of the observation column in adata.obs that contains the cell type information for coloring the points. Default is 'leiden'.
+
+    Returns
+    -------
+    None
+        The function displays the stratified UMAP plots but does not return any value.
+    """
+
+    for group in adata.obs[obs].unique():
+        adata_group = adata[adata.obs[obs] == group]
+
+        sc.pl.umap(
+            adata_group,
+            color=[color_by],
+            title=f'{tissue_type} {sample_name} {group} celltypes',
+            cmap='turbo',
+            show=False
+        )
+
+        ax = plt.gca()
+        for cluster in adata_group.obs['leiden'].cat.categories:
+            cluster_mask = adata_group.obs['leiden'] == cluster
+            cluster_coords = adata_group.obsm['X_umap'][cluster_mask]
+            x, y = cluster_coords[:, 0].mean(), cluster_coords[:, 1].mean()
+            ax.text(x, y, cluster, color='black', fontsize=10,
+                    weight='bold', ha='center', va='center')
+
+        plt.show()
+
+
+def recombinant_umap(adata, sample_name, color_by='celltype'):
+    """
+    Creates a UMAP plot for recombinant samples, stratified by tissue and donor group.
+
+    This function visualizes UMAP results from an AnnData object, stratifying the data by tissue type and donor group.
+    For each unique combination of tissue and donor group, a separate UMAP plot is generated,
+    coloring the points by cell type and annotating the clusters with their respective labels. The plot
+    includes a title indicating the sample name, tissue type, and donor group being visualized.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        AnnData object containing UMAP coordinates in the obsm['X_umap'] attribute and
+        cell type information in the 'celltype' observation column.
+    sample_name : str
+        The name or identifier of the sample set, used in the plot title.
+    color_by : str, optional
+        The name of the observation column in adata.obs that contains the cell type information for coloring
+
+    Returns
+    -------
+    None
+        The function displays the recombinant UMAP plots but does not return any value.
+    """
+
+    for tissue in adata.obs['tissue'].unique():
+        for group in ['ctr', 'hst', 'ftl']:
+
+            mask = (
+                (adata.obs['tissue'] == tissue) &
+                (adata.obs['group'] == group)
+            )
+            adata_group = adata[mask]
+
+            if adata_group.n_obs == 0:
+                continue
+
+            sc.pl.umap(
+                adata_group,
+                color=color_by,
+                title=f'{sample_name} {tissue} {group} celltypes',
+                cmap='turbo',
+                show=False
+            )
+
+            ax = plt.gca()
+
+            for cluster in adata_group.obs['leiden'].cat.categories:
+                cluster_mask = adata_group.obs['leiden'] == cluster
+
+                if cluster_mask.sum() == 0:
+                    continue
+
+                cluster_coords = adata_group.obsm['X_umap'][cluster_mask]
+                x, y = cluster_coords[:, 0].mean(), cluster_coords[:, 1].mean()
+
+                ax.text(
+                    x, y, cluster,
+                    color='black',
+                    fontsize=10,
+                    weight='bold',
+                    ha='center',
+                    va='center'
+                )
+
+            plt.show()
+
+
 def composition_dotplot(adata, group_x, group_y):
     """
     Creates a dot plot showing the composition of cell types across different groups.
